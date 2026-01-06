@@ -13,27 +13,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Trusting the Render proxy for secure cookies
+// Trusting Render's proxy for secure cookies
 app.set("trust proxy", 1);
 
-// Middleware
+// Middlewares
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS Configuration
+// CORS Configuration with your specific Vercel URL
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://tomato.vercel.app" // Ensure this exactly matches your Vercel URL (no trailing slash)
+  "https://tomato-mu-pearl.vercel.app" 
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       if (allowedOrigins.indexOf(origin) === -1) {
-        var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
+        return callback(new Error('CORS policy error'), false);
       }
       return callback(null, true);
     },
@@ -52,14 +50,13 @@ app.use("/api/user", userRouter);
 app.use("/api/cart", CartRouter);
 app.use("/api/order", orderRouter);
 
-// Static files (Make sure 'uploads' folder exists in your repo or is created on build)
+// Static files
 app.use("/images", express.static("uploads"));
 
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

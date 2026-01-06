@@ -9,7 +9,7 @@ const StoreContextProvider = (props) => {
     const [cartItems, setCartItems] = useState({});
     const [food_list, setFoodList] = useState([]);
 
-    // 1. Fetch Food List (Public data)
+    // 1. Fetch Food List (Public data - works even if logged out)
     const fetchFoodList = async () => {
         try {
             const response = await api.get("/api/food/list");
@@ -19,33 +19,46 @@ const StoreContextProvider = (props) => {
         }
     };
 
-    // 2. Load User Profile and Cart (The logic you requested)
+    // 2. Load User Profile and Cart 
     const loadUserProfile = async () => {
         try {
-            // This call succeeds only if the 'token' cookie is valid
+            // This call checks the secure HttpOnly cookie on the backend
             const response = await api.get("/api/user/profile");
             
             if (response.data.success) {
                 setUser(response.data.user);
                 setIsLoggedIn(true);
                 
-                // Once we know the user is valid, fetch their specific cart data
+                // Fetch the user's specific cart data once authenticated
                 const cartResponse = await api.post("/api/cart/get", {});
                 setCartItems(cartResponse.data.cartData || {});
             }
         } catch (error) {
-            // If 401 Unauthorized, we ensure state is cleared
-            console.log("Session expired or no user logged in.");
+            console.log("No active session or token expired.");
             setIsLoggedIn(false);
             setUser(null);
         }
     };
 
-    // 3. Initial App Load
+    // 3. Logout Function (Clears cookie on backend and state on frontend)
+    const logout = async () => {
+        try {
+            await api.post("/api/user/logout");
+            setIsLoggedIn(false);
+            setUser(null);
+            setCartItems({});
+            // Redirect to home page
+            window.location.replace("/"); 
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    };
+
+    // Initial App Load Logic
     useEffect(() => {
         async function initData() {
-            await fetchFoodList(); // Load food menu first
-            await loadUserProfile(); // Then check if user is logged in
+            await fetchFoodList(); // Load menu
+            await loadUserProfile(); // Restore session
         }
         initData();
     }, []);
@@ -93,7 +106,8 @@ const StoreContextProvider = (props) => {
         isLoggedIn,
         setIsLoggedIn,
         user,
-        loadUserProfile // Exported so you can call it manually after Login
+        loadUserProfile,
+        logout 
     };
 
     return (
