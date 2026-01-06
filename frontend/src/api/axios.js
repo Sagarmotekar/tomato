@@ -1,9 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-    // CHANGE THIS: Replace localhost with your Render link
-    baseURL: "https://tomato-backend-p79y.onrender.com", 
-    withCredentials: true 
+    baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:5000", 
+    withCredentials: true
 });
 
 export default api;

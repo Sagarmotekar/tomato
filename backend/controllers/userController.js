@@ -8,11 +8,11 @@ const createToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
-// Common cookie options for cross-site production (Vercel + Render)
+// Cookie options for local + production
 const cookieOptions = {
   httpOnly: true,
-  secure: true,   // Required for SameSite: 'none'
-  sameSite: "none", // Required for cross-domain (Vercel -> Render)
+  secure: process.env.NODE_ENV === "production", // false for localhost
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
@@ -22,24 +22,18 @@ export const loginUser = async (req, res) => {
 
   try {
     const user = await userModel.findOne({ email });
-    if (!user) {
-      return res.json({ success: false, message: "User does not exist" });
-    }
+    if (!user) return res.status(404).json({ success: false, message: "User does not exist" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.json({ success: false, message: "Incorrect password" });
-    }
+    if (!isMatch) return res.status(401).json({ success: false, message: "Incorrect password" });
 
     const token = createToken(user._id);
-
-    // Set the cookie
     res.cookie("token", token, cookieOptions);
 
-    res.json({ 
-      success: true, 
-      message: "Login successful", 
-      user: { name: user.name, email: user.email } 
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: { name: user.name, email: user.email },
     });
 
   } catch (error) {
@@ -54,17 +48,10 @@ export const registerUser = async (req, res) => {
 
   try {
     const exists = await userModel.findOne({ email });
-    if (exists) {
-      return res.json({ success: false, message: "User already exists" });
-    }
+    if (exists) return res.status(400).json({ success: false, message: "User already exists" });
 
-    if (!validator.isEmail(email)) {
-      return res.json({ success: false, message: "Please enter a valid email" });
-    }
-
-    if (password.length < 8) {
-      return res.json({ success: false, message: "Password must be at least 8 characters" });
-    }
+    if (!validator.isEmail(email)) return res.status(400).json({ success: false, message: "Invalid email" });
+    if (password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -75,7 +62,11 @@ export const registerUser = async (req, res) => {
     const token = createToken(user._id);
     res.cookie("token", token, cookieOptions);
 
-    res.json({ success: true, message: "Registration successful" });
+    res.json({
+      success: true,
+      message: "Registration successful",
+      user: { name: user.name, email: user.email },
+    });
 
   } catch (error) {
     console.error("Registration Error:", error);
@@ -85,10 +76,9 @@ export const registerUser = async (req, res) => {
 
 // ================= LOGOUT USER =================
 export const logoutUser = (req, res) => {
-  // Clearing the cookie with same options it was set with
   res.clearCookie("token", {
     ...cookieOptions,
-    maxAge: 0 // expire immediately
+    maxAge: 0
   });
 
   res.json({ success: true, message: "Logged out successfully" });
@@ -97,11 +87,9 @@ export const logoutUser = (req, res) => {
 // ================= GET USER PROFILE =================
 export const getProfile = async (req, res) => {
   try {
-    // req.userId is attached by your authMiddleware
     const user = await userModel.findById(req.userId).select("-password");
-    if (!user) {
-      return res.json({ success: false, message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
     res.json({ success: true, user });
   } catch (error) {
     console.error("Profile Fetch Error:", error);

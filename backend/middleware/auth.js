@@ -1,36 +1,24 @@
 import jwt from "jsonwebtoken";
 
-const authMiddleware = async (req, res, next) => {
+const authMiddleware = (req, res, next) => {
   try {
-    // 1. Get token from cookies
-    const { token } = req.cookies || {};
+    const token = req.cookies?.token;
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized, please login again",
+        message: "Not authorized, please login"
       });
     }
 
-    // 2. Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (!decoded || !decoded.id) {
-        return res.status(401).json({
-            success: false,
-            message: "Invalid token payload"
-        });
-    }
-
-    // 3. Attach userId to request object
-    req.userId = decoded.id;
-
+    req.userId = decoded.id; // ✅ attach userId
     next();
   } catch (error) {
-    console.error("Auth Middleware Error:", error.message);
+    console.error("Auth Error:", error);
     return res.status(401).json({
       success: false,
-      message: "Session expired, please login again",
+      message: "Invalid or expired token"
     });
   }
 };
